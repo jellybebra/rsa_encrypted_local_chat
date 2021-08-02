@@ -1,7 +1,11 @@
 import socket
 from datetime import datetime
 
+"""
+Проблемы:
+1. Если в сети больше чем 254 компа, то возможно не сработает.
 
+"""
 class Network(object):
     def __init__(self, ip=''):
 
@@ -38,7 +42,7 @@ class Network(object):
         net = '.'.join(net)
 
         hosts = []
-        socket.setdefaulttimeout(.05)
+        socket.setdefaulttimeout(.01)
         for ip in range(1, 255):
             address = f'{net}.{ip}'
             if check(address):

@@ -3,6 +3,15 @@ from find_host_ip_wo_nmap import Network
 from datetime import datetime
 
 
+"""
+
+Проблемы:
+1. Если хостов больше, чем один, то слишком долго подключается к неправильному хосту, нужно сделать таймаут 
+   в 1 секунду: https://stackoverflow.com/questions/3432102/python-socket-connection-timeout
+   
+"""
+
+
 class Client(object):
     def __init__(self):
         self.__HEADER = 64
@@ -12,13 +21,14 @@ class Client(object):
         self.__CLIENT = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     def connect_to(self, server):
-        # socket.setdefaulttimeout(1.)  # testing. doesn't work.
-
+        """
+        Проблема[1]
+        """
         ADDRESS = (server, self.__PORT)
-        # print('Timeout is set to', self.__client.gettimeout())
-        # self.__client.settimeout(10.)
+        # socket.setdefaulttimeout(10.0)  # doesn't work
+        # self.__CLIENT.settimeout(10.0)  # doesn't work
         self.__CLIENT.connect(ADDRESS)
-        # self.__client.settimeout(None)
+        # self.__CLIENT.settimeout(None)  # doesn't work
 
     def message(self, msg):
         message = msg.encode(self.__FORMAT)
@@ -37,9 +47,9 @@ class Client(object):
         self.message(self.__DISCONNECT_MSG)
 
     def connect(self):
-        t1 = datetime.now()
-
         hosts = Network().network_scanner()
+
+        t1 = datetime.now()
 
         for host in hosts:
             try:
