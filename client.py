@@ -2,6 +2,13 @@ import socket
 from find_host_ip_wo_nmap import Network
 from datetime import datetime
 
+"""
+
+TO-DO:
+1. Возможность получать сообщения от сервера.
+
+"""
+
 
 class Client(object):
     def __init__(self):
@@ -35,7 +42,7 @@ class Client(object):
         for host in hosts:
             try:
                 print(f'[CONNECTING] Trying to connect to {host}...')
-                ADDRESS = (host, self.__PORT)                                 # testing
+                ADDRESS = (host, self.__PORT)  # testing
                 self.__CLIENT = socket.create_connection(ADDRESS, timeout=2)  # testing
                 print('[CONNECTING] Success.')
                 break
@@ -49,5 +56,12 @@ class Client(object):
 if __name__ == '__main__':
     cl = Client()
     cl.connect()
-    cl.message('Hello!')
-    cl.disconnect()
+
+    connected = True
+    while connected:
+        msg = input('>>> ')
+        cl.message(msg)
+
+        if msg == cl._Client__DISCONNECT_MSG:
+            cl.disconnect()
+            connected = False

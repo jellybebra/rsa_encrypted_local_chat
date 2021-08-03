@@ -1,6 +1,13 @@
 import socket
 import threading
 
+"""
+
+TO-DO:
+1. Возможность отправлять клиенту сообщения.
+
+"""
+
 
 class Server(object):
     def __init__(self):

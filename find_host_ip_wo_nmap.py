@@ -31,7 +31,9 @@ class Network(object):
 
             # print(f'[SCANNING] Trying {addr}...')
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            result = s.connect_ex((addr, 135))
+            # result = s.connect_ex((addr, 135))  # orig
+            result = s.connect_ex((addr, 5050))  # testing
+
             if result == 0:
                 return 1
             else:
@@ -45,7 +47,7 @@ class Network(object):
         net = '.'.join(net)
 
         hosts = []
-        socket.setdefaulttimeout(.01)
+        socket.setdefaulttimeout(.1)
         for ip in range(1, 255):
             address = f'{net}.{ip}'
             if check(address):
