@@ -4,8 +4,11 @@ from datetime import datetime
 """
 Проблемы:
 1. Если в сети больше чем 254 компа, то возможно не сработает.
-
+   https://stackoverflow.com/questions/11453378/get-network-address-and-network-mask-in-python
+   https://stackoverflow.com/questions/936444/retrieving-network-mask-in-python/2649654
 """
+
+
 class Network(object):
     def __init__(self, ip=''):
 
