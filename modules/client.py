@@ -1,4 +1,5 @@
 import socket
+import threading
 from datetime import datetime
 import sys
 import os
@@ -18,24 +19,20 @@ def cls():
 
 class Client(object):
     def __init__(self):
-        self.__HEADER = 64
         self.__PORT = 5050
+        self.__BPM = 2048  # bits per message
         self.__FORMAT = 'utf-8'
         self.__DISCONNECT_MSG = "!DISCONNECT"
         self.__CLIENT = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     def message(self, msg):
         message = msg.encode(self.__FORMAT)
-        msg_length = len(message)
-        send_length = str(msg_length).encode(self.__FORMAT)
-        send_length += b' ' * (self.__HEADER - len(send_length))
-
-        self.__CLIENT.send(send_length)
         self.__CLIENT.send(message)
 
         if msg != self.__DISCONNECT_MSG:
             # подтверждение получения сообщения
-            print(self.__CLIENT.recv(2048).decode(self.__FORMAT))  # нужно переделать: HEADER и т.п. ...
+            answer = self.__CLIENT.recv(self.__BPM).decode(self.__FORMAT)  # нужно переделать: HEADER и т.п. ...
+            print(answer)
         else:
             print('[DISCONNECT] Disconnecting.')
             sys.exit()
@@ -94,10 +91,39 @@ class Client(object):
             mess = input('>>> ')
             self.message(mess)
 
+    def receive(self):  # TESTING
+        while True:
+            self.__CLIENT.settimeout(None)  # TESTING
+            messages = self.__CLIENT.recv(self.__BPM).decode(self.__FORMAT)
+            print(messages)
+
+    # def __handle_client__(self, conn, addr):  ################################### added from the SERVER
+    #     print(f"\n[NEW CONNECTION] {addr} connected.\n")
+    #
+    #     connected = True
+    #     while connected:
+    #         msg_length = conn.recv(self.__HEADER).decode(self.__FORMAT)
+    #         if msg_length:
+    #             msg_length = int(msg_length)
+    #             msg = conn.recv(msg_length).decode(self.__FORMAT)
+    #
+    #             if msg == self.__DISCONNECT_MSG:
+    #                 print(f"\n[CONNECTIONS] ({addr[0]}) disconnected.\n")
+    #                 connected = False
+    #             else:
+    #                 print(f"[{addr[0]}] {msg}")
+    #                 conn.send("[SERVER] Message received.".encode(self.__FORMAT))
+    #
+    #     conn.close()
+
 
 if __name__ == '__main__':
     cl = Client()
     if cl.connect():
-        cl.chat()
+        t1 = threading.Thread(target=cl.chat)
+        t1.start()
+
+        t2 = threading.Thread(target=cl.receive)
+        t2.start()
     else:
         sys.exit()
