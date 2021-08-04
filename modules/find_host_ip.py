@@ -2,10 +2,12 @@ import socket
 from datetime import datetime
 
 """
+
 Проблемы:
 1. Если в сети больше чем 254 компа, то возможно не сработает.
    https://stackoverflow.com/questions/11453378/get-network-address-and-network-mask-in-python
    https://stackoverflow.com/questions/936444/retrieving-network-mask-in-python/2649654
+   
 """
 
 
@@ -21,9 +23,9 @@ class Network(object):
         ROUTER_IP = '.'.join(ROUTER_IP)
         self.ip = ROUTER_IP
 
-        print(f'[NETWORK] {self.ip} is taken for default IP address of router.')
+        print(f'[NETWORK] {self.ip} is taken for router\'s default IP address.')
 
-    def network_scanner(self):
+    def network_scanner(self, tmout=.04):
         """Scans the local network for hosts. Returns list of IPs of the hosts in the local network."""
 
         def check(addr):
@@ -31,8 +33,8 @@ class Network(object):
 
             # print(f'[SCANNING] Trying {addr}...')
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            # result = s.connect_ex((addr, 135))  # orig
-            result = s.connect_ex((addr, 5050))  # testing
+            # result = s.connect_ex((addr, 5050))  # создаёт лишнее сообщение на сервере (типа присоединился)
+            result = s.connect_ex((addr, 135))  # находит ВСЕХ хостов
 
             if result == 0:
                 return 1
@@ -47,7 +49,7 @@ class Network(object):
         net = '.'.join(net)
 
         hosts = []
-        socket.setdefaulttimeout(.1)
+        socket.setdefaulttimeout(tmout)
         for ip in range(1, 255):
             address = f'{net}.{ip}'
             if check(address):
