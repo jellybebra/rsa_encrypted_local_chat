@@ -117,7 +117,7 @@ class Client(object):
     #     conn.close()
 
 
-if __name__ == '__main__':
+if __name__ == '__main__':  # вот эта херня творит ошибки
     cl = Client()
     if cl.connect():
         t1 = threading.Thread(target=cl.chat)
