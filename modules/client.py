@@ -1,13 +1,8 @@
-import socket
-import threading
-from datetime import datetime
-import sys
 import os
-
-if __name__ == '__main__':
-    from find_host_ip import Network
-else:
-    from .find_host_ip import Network
+import socket
+import sys
+import threading
+from find_host_ip import Network
 
 
 def cls():
@@ -17,113 +12,130 @@ def cls():
     os.system('cls' if os.name == 'nt' else 'clear')
 
 
-class Client(object):
+class Client:
     def __init__(self):
+        # создаём сокет
         self.__PORT = 5050
-        self.__BPM = 2048  # bits per message
-        self.__FORMAT = 'utf-8'
-        self.__DISCONNECT_MSG = "!DISCONNECT"
         self.__CLIENT = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-    def message(self, msg):
-        message = msg.encode(self.__FORMAT)
-        self.__CLIENT.send(message)
+        # доп переменные
+        self.__BPM = 2048  # Bits Per Message - число бит для кодир-я 1 сообщения (взяли максимальное из-за лени)
+        self.__FORMAT = 'utf-8'  # кодировка
+        self.__DISCONNECT_MSG = '!disconnect'
+        self.__connected = False
 
-        if msg != self.__DISCONNECT_MSG:
-            # подтверждение получения сообщения
-            answer = self.__CLIENT.recv(self.__BPM).decode(self.__FORMAT)  # нужно переделать: HEADER и т.п. ...
-            print(answer)
-        else:
-            print('[DISCONNECT] Disconnecting.')
-            sys.exit()
+    def __send__(self):
+        # открываем пользовательский интерфейс
+        cls()
+        print('Please, type "!disconnect" when you\'re done.\n')
 
-    def disconnect(self):
-        print('[DISCONNECT] Disconnecting.')
-        self.message(self.__DISCONNECT_MSG)
-        sys.exit()
+        # пока подключены
+        while self.__connected:
+            # просим пользователя ввести сообщение
+            message = input('')
+
+            # отсылаем сообщение
+            self.__CLIENT.send(message.encode(self.__FORMAT))
+
+            # если сообщение - уведомление об отключении
+            if message == self.__DISCONNECT_MSG:
+                # записываем это
+                self.__connected = False
+
+                # отображаем на экране
+                print('\n[CONNECTION] Disconnected.\n')
+
+                # спрашиваем, хотим ли подключиться снова? --------- экспериментальная фича, могут быть баги
+                answer = input('Press \'Enter\' if you\'d like to reconnect.\nType \'exit\' and press \'Enter\' if '
+                               'you\'d like to exit.')
+                if answer == '':
+                    self.start()
+                else:
+                    sys.exit()
+
+    def __receive__(self):
+        # пока подключены
+        while self.__connected:
+            # не знаю почему, но без этой строки не работает - не трогай
+            self.__CLIENT.settimeout(None)
+
+            # ждём сообщение
+            message = self.__CLIENT.recv(self.__BPM).decode(self.__FORMAT)
+
+            # редактируем, чтобы можно было писать в ответ и выводим на экран
+            message = f'{message}'
+            print(message)
 
     def connect(self):
         """
-
-        Пытаемся подключиться.
-        Если не подкючились, пытаемся подключиться (но с большим таймаутом при поиске хостов).
-
+        Ищем сервер и подключаемся к нему.
+        :return: успех операции
         """
 
-        def try_to_connect():
-            connection = False
+        def try_to_connect(hosts):
+            """
+            Попытаться подключиться
+            :return: успех/неудача
+            """
 
-            t1 = datetime.now()
-
+            # для каждого полученного адреса
             for host in hosts:
+                # выводим сообщение о том, к какому адресу пытаемся подключиться
+                print(f'[CONNECTING] Trying to connect to {host}...')
+
                 try:
-                    print(f'[CONNECTING] Trying to connect to {host}...')
+                    # пытаемся подключиться
                     ADDRESS = (host, self.__PORT)
                     self.__CLIENT = socket.create_connection(ADDRESS, timeout=0.5)  # testing
-                    connection = True
+
+                    # если не появилась ошибка, значит подключились, запишем это
+                    self.__connected = True
+
+                    # выводим сообщение об успехе на экран
                     print('[CONNECTING] Success.')
+
+                    # прекращаем поиск
                     break
+
+                # в случае неудачного подключения
                 except:
+                    # выводим сообщение о неудаче на экран
                     print(f'[CONNECTING] FAILED.')
 
-            t2 = datetime.now()
-            print(f'[CONNECTING] Time: {t2 - t1}')
+        # пытаемся быстро подключиться
+        hosts = Network().network_scanner(mode='fast')
+        try_to_connect(hosts)
 
-            return connection
-
-        hosts = Network().network_scanner(tmout=.02)
-
-        connected = try_to_connect()
-
-        if not connected:
+        # если не удалось
+        if not self.__connected:
+            # выводим сообщение об этом
             print('[CONNECTING] Failed. Going for a rescan...')
-            hosts = Network().network_scanner()
-            connected = try_to_connect()
 
-        print(f"[CONNECTING] Connection {'FAILED' if not connected else 'completed'}.")
+            # пробуем еще раз, но безопасно
+            hosts = Network().network_scanner(mode='safe')
+            try_to_connect(hosts)
 
-        return connected
+        # выводим результат этих махинаций
+        print(f"[CONNECTING] Connection {'FAILED' if not self.__connected else 'completed'}.")
 
-    def chat(self):
-        cls()
-        print('Please, type "!DISCONNECT" when you\'re done.', flush=True)
-        while True:
-            mess = input('>>> ')
-            self.message(mess)
+        # возвращаем этот результат
+        return self.__connected
 
-    def receive(self):  # TESTING
-        while True:
-            self.__CLIENT.settimeout(None)  # TESTING
-            messages = self.__CLIENT.recv(self.__BPM).decode(self.__FORMAT)
-            print(messages)
+    def start(self):
+        # подсоединяемся
+        self.connect()
 
-    # def __handle_client__(self, conn, addr):  ################################### added from the SERVER
-    #     print(f"\n[NEW CONNECTION] {addr} connected.\n")
-    #
-    #     connected = True
-    #     while connected:
-    #         msg_length = conn.recv(self.__HEADER).decode(self.__FORMAT)
-    #         if msg_length:
-    #             msg_length = int(msg_length)
-    #             msg = conn.recv(msg_length).decode(self.__FORMAT)
-    #
-    #             if msg == self.__DISCONNECT_MSG:
-    #                 print(f"\n[CONNECTIONS] ({addr[0]}) disconnected.\n")
-    #                 connected = False
-    #             else:
-    #                 print(f"[{addr[0]}] {msg}")
-    #                 conn.send("[SERVER] Message received.".encode(self.__FORMAT))
-    #
-    #     conn.close()
+        # если подключились
+        if self.__connected:
+            # начинаем отправлять сообщения
+            send = threading.Thread(target=self.__send__)
+            send.start()
+
+            # начинаем принимать сообщения
+            receive = threading.Thread(target=self.__receive__)
+            receive.start()
 
 
-if __name__ == '__main__':  # вот эта херня творит ошибки
-    cl = Client()
-    if cl.connect():
-        t1 = threading.Thread(target=cl.chat)
-        t1.start()
-
-        t2 = threading.Thread(target=cl.receive)
-        t2.start()
-    else:
-        sys.exit()
+if __name__ == "__main__":
+    c = Client()
+    c.start()

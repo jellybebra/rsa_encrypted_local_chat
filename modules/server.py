@@ -1,6 +1,6 @@
+import os
 import socket
 import threading
-import os
 
 
 def cls():
@@ -10,64 +10,90 @@ def cls():
     os.system('cls' if os.name == 'nt' else 'clear')
 
 
-class Server(object):
+class Server:
     def __init__(self):
+        # создаём полный адрес сервера
         self.__PORT = 5050
-        self.__BPM = 2048  # bits per message
-        self.__ACTIVE_CLIENTS = []
-        self.__FORMAT = 'utf-8'
-        self.__DISCONNECT_MSG = "!DISCONNECT"
+        self.__SERVER_IP = socket.gethostbyname(socket.gethostname())
+        self.__ADDRESS = (self.__SERVER_IP, self.__PORT)
 
-        server_ip = socket.gethostbyname(socket.gethostname())
-        self.__ADDRESS = (server_ip, self.__PORT)
+        # создаём сокет на заданном адресе
         self.__server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.__server.bind(self.__ADDRESS)
 
+        # некоторые доп. переменные
+        self.active_clients = []  # данные всех подключенных на данный момент клиентов
+        self.__BPM = 2048  # Bits Per Message - число бит для кодир-я 1 сообщения (взяли максимальное из-за лени)
+        self.__FORMAT = 'utf-8'  # кодировка
+        self.__DISCONNECT_MSG = '!disconnect'
+
     def __handle_client__(self, conn, addr):
-        print(f"\n[NEW CONNECTION] {addr} connected.\n")
-
-        def repost_to_others(msg):  # TESTING
-            message = msg.encode(self.__FORMAT)
-
-            for client in self.__ACTIVE_CLIENTS:
-                client[0].send(message)
-
-                # получение подтверждения получения сообщения
-                print(client[0].recv(self.__BPM).decode(self.__FORMAT))  # нужно переделать: HEADER и т.п. ...
-
+        # будем обслуживать пользователя, пока он не отключится
         connected = True
         while connected:
-            msg = conn.recv(self.__BPM).decode(self.__FORMAT)
-            if len(msg):
-                if msg == self.__DISCONNECT_MSG:
-                    self.__ACTIVE_CLIENTS.remove((conn, addr))
-                    print(f"\n[CONNECTIONS] ({addr[0]}) disconnected.\n")
+            # ждём нового сообщения от пользователя
+            incoming_message = conn.recv(self.__BPM).decode(self.__FORMAT)
+
+            # обрабатываем сообщение
+
+            # если сообщение хоть что-то содержит
+            if len(incoming_message):
+                # если это уведомление об отключении
+                if incoming_message == self.__DISCONNECT_MSG:
+                    # убираем пользователя из активных клиентов
+                    self.active_clients.remove((conn, addr))
+
+                    # прекращаем обслуживание клиента
                     connected = False
+
+                    # отображаем это действие на сервере
+                    print(f"\n[CONNECTIONS] ({addr[0]}) disconnected.\n")
+
+                    # переадресуем это сообщение всем активным клиентам
+                    message = f'\n[CONNECTIONS] {addr} has left the chat.\n'
+                    message = message.encode(self.__FORMAT)
+                    for client in self.active_clients:
+                        client[0].send(message)
+
+                # если это обычное сообщение
                 else:
-                    message = f"[{addr[0]}] {msg}"
-                    repost_to_others(message)
-                    print(message)
-                    conn.send("[SERVER] Message received.".encode(self.__FORMAT))
+                    # печатаем сообщение на сервере
+                    incoming_message = f"[{addr[0]}, {addr[1]}] {incoming_message}"
+                    print(incoming_message)
 
-        conn.close()
-
-    # def chat(self): ################################# added from the CLIENT
-    #     while True:
-    #         mess = input('>>> ')
-    #         self.message(mess)
+                    # переадресуем это сообщение всем клиентам, включая отправителя (для подтверждения)
+                    incoming_message = incoming_message.encode(self.__FORMAT)
+                    for client in self.active_clients:
+                        client[0].send(incoming_message)
 
     def start(self):
+        # начинаем слушать входящие запросы, сообщения и т.п.
         self.__server.listen()
         cls()
         print(f"[LISTENING] Server started. Server is listening on {self.__ADDRESS}")
 
-        while True:  # ловим все новые подключения
+        # до конца работы программы
+        while True:
+            # принимаем каждого, кто хочет подключиться, и записываем его данные
             conn, addr = self.__server.accept()
-            self.__ACTIVE_CLIENTS.append((conn, addr))
+
+            # выводим сообщение о новом пользователе на экран
+            new_con_message = f"\n[NEW CONNECTION] {addr} connected.\n"
+            print(new_con_message)
+
+            # оповестим всех активных клиентов об этом
+            new_con_message = new_con_message.encode(self.__FORMAT)
+            for client in self.active_clients:
+                client[0].send(new_con_message)
+
+            # добавляем нового пользователя в список активных пользователей
+            self.active_clients.append((conn, addr))
+
+            # будем обслуживать каждого клиента отдельно
             thread = threading.Thread(target=self.__handle_client__, args=(conn, addr))
             thread.start()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     s = Server()
     s.start()
