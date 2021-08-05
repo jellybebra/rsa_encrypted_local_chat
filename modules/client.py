@@ -2,7 +2,11 @@ import os
 import socket
 import sys
 import threading
-from find_host_ip import Network
+
+if __name__ == '__main__':
+    from find_host_ip import Network
+else:
+    from .find_host_ip import Network
 
 
 def cls():
@@ -122,20 +126,19 @@ class Client:
         return self.__connected
 
     def start(self):
-        # подсоединяемся
-        self.connect()
+        # начинаем отправлять сообщения
+        send = threading.Thread(target=self.__send__)
+        send.start()
 
-        # если подключились
-        if self.__connected:
-            # начинаем отправлять сообщения
-            send = threading.Thread(target=self.__send__)
-            send.start()
-
-            # начинаем принимать сообщения
-            receive = threading.Thread(target=self.__receive__)
-            receive.start()
+        # начинаем принимать сообщения
+        receive = threading.Thread(target=self.__receive__)
+        receive.start()
 
 
 if __name__ == "__main__":
-    c = Client()
-    c.start()
+    cl = Client()
+
+    # если присоединились
+    if cl.connect():
+        # запускаем отправку/приём сообщений
+        cl.start()

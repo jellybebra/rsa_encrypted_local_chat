@@ -2,9 +2,15 @@ from modules.client import Client
 from modules.server import Server
 
 cl = Client()
-if cl.connect():  # if connected
-    cl.chat()
-else:  # become a host
+
+# если присоединились
+if cl.connect():
+    # запускаем отправку/приём сообщений
+    cl.start()
+
+# иначе
+else:
+    # становимся хостом
     s = Server()
     s.start()
 
