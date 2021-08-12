@@ -1,61 +1,91 @@
-import rsa
+from Crypto.PublicKey import RSA
+from Crypto.Cipher import PKCS1_OAEP
+import base64
 
-"""
-
-https://youtu.be/rrKuqbTDom8 - если вдруг, что-то не так
-
-"""
+__FORMAT = 'utf-8'
 
 
-def gen_keys(bits=1024):
+def gen_keys(bits: int = 1024) -> tuple:
+    """
+    Генерирует ключи.
+
+    :param bits: количество бит ключа (нельзя зашифровать сообщение ключом, который короче соообщения)
+    :return: кортеж из ключей (закрытый, открытый) в байтовом формате
     """
 
-    Чтобы не было закономерностей в шифре, длина ключа должна быть значительно больше длины самого сообщения.
+    # генерирует приватный ключ
+    key = RSA.generate(bits)
 
-    :param bits: количество бит ключа
-    :return: возвращает кортеж (открытый ключ, закрытый ключ)
+    # переводим в битовый формат
+    private_key = key.export_key()
+    public_key = key.public_key().export_key()
 
+    return private_key, public_key
+
+
+def encrypt(public_key: bytes, msg: str) -> bytes:
     """
+    Шифрует данное сообщение данным ключом.
 
-    return rsa.newkeys(bits)  # генерируем ключи
-
-
-def encrypt(public_key, message):
-    """
-    Шифрует данное сообщение.
-
+    :param msg: сообщение
     :param public_key: открытый ключ
-    :param message: сообщение
     :return: зашифрованное сообщение
 
     """
-    message = bytes(message, 'utf-8')
-    return rsa.encrypt(message, pub_key)
+
+    # делаем из строки байты
+    msg = msg.encode(__FORMAT)
+
+    # превращаем байты в ключ-объект
+    public_key = RSA.importKey(public_key)
+
+    cipher = PKCS1_OAEP.new(public_key)  # шифр = алгоритм.???(публичный ключ)
+    encrypted_message = cipher.encrypt(msg)  # зашифрованное сообщение = шифр.зашифровать(сообщение)
+
+    # доп кодирование
+    encrypted_message = base64.b64encode(encrypted_message)
+
+    return encrypted_message
 
 
-def decrypt(private_key, message):
+def decrypt(private_key: bytes, encr_enc_message: bytes) -> str:
     """
-    Расшифровывает данное сообщение.
+    Расшифровывает данное сообщение данным ключом.
 
+    :param encr_enc_message: зашифрованное, закодированное сообщение
     :param private_key: закрытый ключ
-    :param message: побитово закодированное сообщение
     :return: расшифрованное сообщение
 
     """
-    message = rsa.decrypt(message, private_key)
-    return message.decode('utf-8')
+
+    # декодируем сообщение
+    encrypted_message = base64.b64decode(encr_enc_message)
+
+    # импорт ключей
+    private_key = RSA.importKey(private_key)
+
+    cipher = PKCS1_OAEP.new(private_key)  # шифр = алгоритм.???(приватный ключ)
+    decrypted_message = cipher.decrypt(encrypted_message)  # сообщение = шифр.расшифровать(зашифрованное сообщение)
+
+    # делаем из полученной строки-байтов строку
+    decrypted_message = decrypted_message.decode(__FORMAT)
+
+    return decrypted_message
 
 
 if __name__ == '__main__':
-    (pub_key, priv_key) = gen_keys()
-    print(pub_key)
-    print(priv_key)
+    priv_key, publ_key = gen_keys()
+    __ENCRYPTED_MSG = '!e'
 
-    msg = "Черепашка-ниндзя."
-    print(f'We want to send: "{msg}"')
+    msg = "Жопа..."  # сообщение, которое хотим отправить
+    encrypted_msg = encrypt(publ_key, msg)
+    encoded_msg = f'{__ENCRYPTED_MSG} '.encode(__FORMAT) + encrypted_msg
 
-    encrypted_msg = encrypt(pub_key, msg)
-    print(f'Encrypted message: "{encrypted_msg}"')
+    inc_message = encoded_msg.decode(__FORMAT)
+    # сервер получил:
+    # {self.__ENCRYPTED_MSG} {encrypted_msg}
+    # !e 8x329e8x7ndch2837ycd2h8b7hv32
 
-    decrypted_msg = decrypt(priv_key, encrypted_msg)
-    print(f'Decrypted message: "{decrypted_msg}"')
+    prefix, encrypted_encoded_message = inc_message.split(' ')
+    decrypted = decrypt(priv_key, encrypted_encoded_message)
+    print(f'Decrypted message: "{decrypted}"')
