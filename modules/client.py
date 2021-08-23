@@ -1,48 +1,49 @@
 import socket
 import sys
 import threading
-import rsa_module
 import time
 import base64
-from find_host_ip import Network
+from modules import rsa_module
+from modules.find_host_ip import Network
+from modules.constants import *
 
-"""
-
-Попробовать понизить BPM для ускорения.
-
-"""
+# TODO: если сообщение пустое, не реагировать
 
 
 class Client:
     def __init__(self):
+        # очищаем экран
+        import os
+        os.system('cls' if os.name == 'nt' else 'clear')
+
         # создаём сокет
-        self.__PORT = 5050
+        self.__PORT = Messaging.PORT
         self.__CLIENT = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
         # доп. константы
-        self.__BPM = 512  # Bits Per Message - число бит для кодир-я 1 сообщения (взяли максимальное из-за лени)
-        self.__FORMAT = 'utf-8'  # кодировка
+        self.__BPM = Messaging.BPM
+        self.__FORMAT = Messaging.FORMAT
 
         # опознавательные знаки
-        self.__DISCONNECT_MSG = '!d'
-        self.__WIDE_MSG = '!w'
-        self.__ENCRYPTED_MSG = '!e'
-        self.__KEY_REQUEST_MSG = '!kr'
-        self.__KEY_ANSWER_MSG = '!ka'
+        self.__DISCONNECT_MSG = Messaging.DISCONNECT_MSG
+        self.__WIDE_MSG = Messaging.WIDE_MSG
+        self.__ENCRYPTED_MSG = Messaging.ENCRYPTED_MSG
+        self.__KEY_REQUEST_MSG = Messaging.KEY_REQUEST_MSG
+        self.__KEY_ANSWER_MSG = Messaging.KEY_ANSWER_MSG
 
         # переменные
         self.__connected = None
         self.__recipient_pub_key = None
-        self.__name = input("Please enter your name: ")
-        self.__priv_key, self.__pub_key = rsa_module.gen_keys()  # генерируем ключи шифрования
+        self.__name = input(f"Please enter your name: {Style.GREEN1}")
+        print(Style.WHITE)
+        self.__priv_key, self.__pub_key = rsa_module.gen_keys()  # генерируем ключи шифрования (bytes)
 
     def __identify__(self):
-        # отправляем имя
-        name = self.__name.encode(self.__FORMAT)  # str -> bytes
-        self.__CLIENT.send(name)
-
-        # отправляем открытый ключ
+        """Отправляет имя, а потом ключ"""
+        encoded_name = self.__name.encode(self.__FORMAT)  # str -> bytes
         pub_key = self.__pub_key  # bytes
+
+        self.__CLIENT.send(encoded_name)
         self.__CLIENT.send(pub_key)
 
     def __send__(self):
@@ -54,16 +55,14 @@ class Client:
             # если это сообщение об отключении
             if self.__DISCONNECT_MSG in full_message:
                 # отправляем сообщение
-                self.__CLIENT.send(full_message.encode(self.__FORMAT))
+                full_message = full_message.encode(self.__FORMAT)  # str -> bytes
+                self.__CLIENT.send(full_message)
 
                 # отображаем на экране
-                print('\n[CONNECTION] Disconnected.\n')
+                print(f'\n[CONNECTION] {Style.GREEN2}Disconnected successfully.{Style.WHITE}\n')
 
                 # выключаемся
                 sys.exit()
-
-                # останавливаем цикл
-                # self.__connected = False
 
             # если это просто сообщение
             else:
@@ -78,7 +77,10 @@ class Client:
                 self.__CLIENT.send(key_request)
 
                 # подождём пока self.__receive__ получит ключ и запишет в self.__recipient_pubkey
-                time.sleep(1)
+                time.sleep(0.5)
+                # TODO: попробовать уменьшить время / переделать типа:
+                #  while time.now() != времени последнего изменения переменной
+                #       pass
 
                 # шифруем сообщение
                 encrypted_message = rsa_module.encrypt(self.__recipient_pub_key, message)
@@ -90,54 +92,35 @@ class Client:
     def __receive__(self):
         # пока подключены
         while self.__connected:
-            # не знаю почему, но без этой строки не работает - не трогай
-            self.__CLIENT.settimeout(None)
+            self.__CLIENT.settimeout(None)  # TODO: проверить, работает ли без этой строки
 
-            # принимаем новое сообщение (ждём)
-            inc_message = self.__CLIENT.recv(self.__BPM).decode(self.__FORMAT)
+            # принимаем новое сообщение: {префикс} {само сообщение}
+            inbox = self.__CLIENT.recv(self.__BPM).decode(self.__FORMAT)
 
-            # если это широковещательное сообщение
-            if self.__WIDE_MSG in inc_message:
-                # полученное сообщение: {self.__WIDE_MSG} {MESSAGE}
+            # отбрасываем префикс
+            for index in [self.__WIDE_MSG, self.__KEY_ANSWER_MSG, self.__ENCRYPTED_MSG]:
+                if index in inbox:
+                    break
+            message = inbox.replace(f'{index} ', '')  # TODO: проверить, работает это или нужно запихнуть обратно в цикл
 
-                # отбрасываем префикс
-                message = inc_message.replace(f'{self.__WIDE_MSG} ', '')
+            if index == self.__WIDE_MSG:
+                print(message)  # выводим на экран
 
-                # выводим на экран
-                print(message)
+            if index == self.__KEY_ANSWER_MSG:
+                # полученное сообщение - это закодированный ключ; записываем его, чтобы использовать в __send__
+                self.__recipient_pub_key = base64.b64decode(message)
 
-            # если это ответ на запрос о ключе
-            if self.__KEY_ANSWER_MSG in inc_message:
-                # полученное сообщение: {self.__KEY_ANSWER_MSG} {recipient_pub_key}
-                # тут может быть баг из-за того, что может раскодироваться
-
-                # отделяем сам ключ
-                recipient_pub_key = inc_message.split(' ')[1]
-
-                # декодируем ключ
-                recipient_pub_key = base64.b64decode(recipient_pub_key)
-
-                # "отправляем" в __send__
-                self.__recipient_pub_key = recipient_pub_key
-
-            # если это зашифрованное сообщение
-            if self.__ENCRYPTED_MSG in inc_message:
-                # полученное сообщение: {self.__ENCRYPTED_MSG} [{name}] {encrypted message}
-
-                # отбросим префикс
-                inc_message = inc_message.replace(f'{self.__ENCRYPTED_MSG} ', '')
-
+            if index == self.__ENCRYPTED_MSG:  # сообщение: [{name}] {encrypted message}
                 # запишем имя и сообщение
-                inc_message = inc_message.split(' ')
-                name = inc_message[0]
-                del inc_message[0]
-                encrypted_message = ' '.join(inc_message).encode(self.__FORMAT)
-
-                # расшифруем сообщение
+                name, encrypted_message = message.split(' ')
+                encrypted_message = encrypted_message.encode(self.__FORMAT)
                 message = rsa_module.decrypt(self.__priv_key, encrypted_message)
 
                 # выведем на экран
-                print(f'{name} {message}')
+                if name == f'[{self.__name}]':
+                    print(f'{Style.GREEN1}[you]{Style.WHITE} {message}')
+                else:
+                    print(f'{Style.RED2}{name}{Style.WHITE} {message}')
 
     def connect(self):
         """
@@ -156,46 +139,46 @@ class Client:
             # для каждого полученного адреса
             for host in hosts:
                 # выводим сообщение о том, к какому адресу пытаемся подключиться
-                print(f'[CONNECTING] Trying to connect to {host}...')
+                print(f'[CONNECTING] Attempt to connect to {host}...', end=' ')
 
                 try:
                     # пытаемся подключиться
                     ADDRESS = (host, self.__PORT)
-                    self.__CLIENT = socket.create_connection(ADDRESS, timeout=0.5)  # testing
+                    self.__CLIENT = socket.create_connection(ADDRESS, timeout=0.5)
 
                     # если не появилась ошибка, значит подключились, запишем это
                     self.__connected = True
 
                     # выводим сообщение об успехе на экран
-                    print('[CONNECTING] Success.')
+                    print(f'{Style.GREEN2}SUCCEEDED{Style.WHITE}.')
 
                     # прекращаем поиск
                     break
 
                 # в случае неудачного подключения
-                except:
+                except:  # TODO: узнать че тут за ошибка
                     # выводим сообщение о неудаче на экран
-                    print(f'[CONNECTING] FAILED.')
+                    print(f'{Style.RED1}FAILED{Style.WHITE}.')
 
         # пытаемся быстро подключиться
-        hosts = Network().network_scanner(mode='fast')
+        hosts = Network().scan(mode='fast')
         try_to_connect(hosts)
 
-        # если не удалось
-        if not self.__connected:
-            # выводим сообщение об этом
-            print('[CONNECTING] Failed. Going for a rescan...')
-
-            # пробуем еще раз, но безопасно
-            hosts = Network().network_scanner(mode='safe')
-            try_to_connect(hosts)
-
-        # выводим результат этих махинаций
-        print(f"[CONNECTING] Connection {'FAILED' if not self.__connected else 'completed'}.")
+        # # если не удалось
+        # if not self.__connected:
+        #     # выводим сообщение об этом
+        #     print(f'[CONNECTING] {Style.RED1}Failed to connect to any host.{Style.WHITE} Going for a rescan...')
+        #
+        #     # пробуем еще раз, но безопасно
+        #     hosts = Network().scan(mode='safe')
+        #     try_to_connect(hosts)
 
         # сотрём всю хуйню, которую написали
         import os
         os.system('cls' if os.name == 'nt' else 'clear')
+
+        # выводим результат этих махинаций
+        print(f"[CONNECTING] Connection {f'{Style.RED1}FAILED{Style.WHITE}' if not self.__connected else f'{Style.GREEN2}COMPLETED{Style.WHITE}'}.")
 
         # возвращаем этот результат
         return self.__connected
@@ -213,7 +196,7 @@ class Client:
         receive.start()
 
         # открываем пользовательский интерфейс
-        print('\nPlease, type "!disconnect" when you\'re done.'
+        print(f'\nPlease, type "{Style.BLUE1}{self.__DISCONNECT_MSG}{Style.WHITE}" when you\'re done.'
               '\nMessage format: {recipient\'s name} {message}\n')
 
 

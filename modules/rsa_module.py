@@ -1,8 +1,9 @@
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_OAEP
+from modules.constants import *
 import base64
 
-__FORMAT = 'utf-8'
+_FORMAT = Messaging.FORMAT
 
 
 def gen_keys(bits: int = 1024) -> tuple:
@@ -34,7 +35,7 @@ def encrypt(public_key: bytes, msg: str) -> bytes:
     """
 
     # делаем из строки байты
-    msg = msg.encode(__FORMAT)
+    msg = msg.encode(_FORMAT)
 
     # превращаем байты в ключ-объект
     public_key = RSA.importKey(public_key)
@@ -68,7 +69,7 @@ def decrypt(private_key: bytes, encr_enc_message: bytes) -> str:
     decrypted_message = cipher.decrypt(encrypted_message)  # сообщение = шифр.расшифровать(зашифрованное сообщение)
 
     # делаем из полученной строки-байтов строку
-    decrypted_message = decrypted_message.decode(__FORMAT)
+    decrypted_message = decrypted_message.decode(_FORMAT)
 
     return decrypted_message
 
@@ -79,9 +80,9 @@ if __name__ == '__main__':
 
     msg = "Жопа..."  # сообщение, которое хотим отправить
     encrypted_msg = encrypt(publ_key, msg)
-    encoded_msg = f'{__ENCRYPTED_MSG} '.encode(__FORMAT) + encrypted_msg
+    encoded_msg = f'{__ENCRYPTED_MSG} '.encode(_FORMAT) + encrypted_msg
 
-    inc_message = encoded_msg.decode(__FORMAT)
+    inc_message = encoded_msg.decode(_FORMAT)
     # сервер получил:
     # {self.__ENCRYPTED_MSG} {encrypted_msg}
     # !e 8x329e8x7ndch2837ycd2h8b7hv32

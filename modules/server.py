@@ -1,18 +1,16 @@
 import socket
 import threading
 import base64
+from modules.constants import *
 
-"""
 
-В пред. версии была проверка на длину сообщения.
-
-"""
+# TODO: если сообщение пустое, не реагировать
 
 
 class Server:
     def __init__(self):
         # создаём полный адрес сервера
-        self.__PORT = 5050
+        self.__PORT = Messaging.PORT
         self.__SERVER_IP = socket.gethostbyname(socket.gethostname())
         self.__ADDRESS = (self.__SERVER_IP, self.__PORT)
 
@@ -24,15 +22,17 @@ class Server:
         self.__active_clients = list()  # список словарей с данными всех подключенных на данный момент клиентов
 
         # константы
-        self.__BPM = 512  # Bits Per Message - число бит для кодир-я 1 сообщения (взяли максимальное из-за лени)
-        self.__FORMAT = 'utf-8'  # кодировка
+        self.__BPM = Messaging.BPM
+        self.__FORMAT = Messaging.FORMAT
 
         # опознавательные знаки
-        self.__DISCONNECT_MSG = '!d'
-        self.__WIDE_MSG = '!w'
-        self.__ENCRYPTED_MSG = '!e'
-        self.__KEY_REQUEST_MSG = '!kr'
-        self.__KEY_ANSWER_MSG = '!ka'
+        self.__SERVER_SIGN = f'{Style.CYAN1}[SERVER]{Style.WHITE}'
+
+        self.__DISCONNECT_MSG = Messaging.DISCONNECT_MSG
+        self.__WIDE_MSG = Messaging.WIDE_MSG
+        self.__ENCRYPTED_MSG = Messaging.ENCRYPTED_MSG
+        self.__KEY_REQUEST_MSG = Messaging.KEY_REQUEST_MSG
+        self.__KEY_ANSWER_MSG = Messaging.KEY_ANSWER_MSG
 
     def __active_names__(self) -> list:
         """
@@ -81,6 +81,7 @@ class Server:
                 # прекращаем обслуживание клиента
                 connected = False
 
+                # TODO: исправить кусок снизу -- он не удаляет нифига
                 # удаляем его данные
                 for client in self.__active_clients:
                     if client['conn'] == conn:
@@ -90,7 +91,8 @@ class Server:
                 # отображаем это действие на сервере
                 rm_con_message = f'\n[CONNECTIONS] ({addr[0]}, {name}) disconnected.' \
                                  f'\n[CONNECTIONS] Active users: {self.__active_names__()}\n'
-                print(rm_con_message)
+                if __name__ == '__main__':
+                    print(rm_con_message)
 
                 # уведомим всех активных клиентов
                 self.__wide_message__(rm_con_message)
@@ -100,7 +102,8 @@ class Server:
                 # полученное сообщение: {self.__KEY_REQUEST_MSG} {recipient}
 
                 # напечатаем запрос на экране
-                print(f'[{name}] {inc_message}')
+                if __name__ == '__main__':
+                    print(f'[{name}] {inc_message}')
 
                 # вытаскиваем адресата
                 recipient = inc_message.split(' ')[1]
@@ -122,10 +125,11 @@ class Server:
                 # полученное сообщение: {self.__ENCRYPTED_MSG} {encrypted encoded message}
 
                 # напечатаем сообщение на экране
-                print(f'[{name}] to [{recipient}] {inc_message}')
+                if __name__ == '__main__':
+                    print(f'[{name}] to [{recipient}] {inc_message}')
 
-                # добавим в сообщение отправителя
-                encr_message = inc_message.split(' ')[1].encode(self.__FORMAT)  # тут вроде не должно быть бага, т.к. щифр - непр. строка
+                # добавим в сообщение имя отправителя
+                encr_message = inc_message.split(' ')[1].encode(self.__FORMAT)
                 new_message = f'{self.__ENCRYPTED_MSG} [{name}] '.encode(self.__FORMAT) + encr_message
 
                 # пересылаем новое сообщение адресату
@@ -134,7 +138,7 @@ class Server:
     def start(self):
         # открываем и слушаем порт
         self.__SERVER.listen()
-        print(f"[LISTENING] Server started {self.__ADDRESS}.")
+        print(f"{self.__SERVER_SIGN} Server started {self.__ADDRESS}.")
 
         # пока не выключим программу,
         # обрабатываем каждое новое подключение
@@ -155,7 +159,8 @@ class Server:
             # выведем сообщение о новом пользователе и активных пользователях
             new_conn_message = f'\n[CONNECTIONS] ({addr[0]}, {name}) joined.' \
                                f'\n[CONNECTIONS] Active users: {self.__active_names__()}\n'
-            print(new_conn_message)
+            if __name__ == '__main__':
+                print(new_conn_message)
 
             # уведомим всех о новом подключении и всех активных пользователях
             self.__wide_message__(new_conn_message)

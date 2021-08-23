@@ -1,14 +1,10 @@
 import socket
 from datetime import datetime
 
-"""
 
-Проблемы:
-1. Если в сети больше чем 254 компа, то возможно не сработает.
-   https://stackoverflow.com/questions/11453378/get-network-address-and-network-mask-in-python
-   https://stackoverflow.com/questions/936444/retrieving-network-mask-in-python/2649654
-   
-"""
+# TODO: Если в сети больше чем 254 компа, то возможно не сработает. Прочитай про маски подсети.
+#  https://stackoverflow.com/questions/11453378/get-network-address-and-network-mask-in-python
+#  https://stackoverflow.com/questions/936444/retrieving-network-mask-in-python/2649654
 
 
 class Network(object):
@@ -23,7 +19,7 @@ class Network(object):
         # выводим полученный IP на экран
         print(f'[SCANNING] {self.ip} is taken for the router\'s default IP address.')
 
-    def network_scanner(self, mode='safe'):
+    def scan(self, mode='safe'):
         """
         Scans the local network for hosts.
 
@@ -36,7 +32,7 @@ class Network(object):
         if mode == 'fast':
             timeout = .02
 
-        def check(addr):
+        def is_host(addr):
             """
             Checks if a given IP is a host's IP.
             :param addr: IP address
@@ -77,7 +73,7 @@ class Network(object):
             address = f'{net}.{ip}'
 
             # если IP является (подозреваемым) сервером
-            if check(address):
+            if is_host(address):
                 # записываем его
                 hosts.append(address)
 
@@ -99,4 +95,4 @@ class Network(object):
 
 if __name__ == '__main__':
     N = Network()
-    N.network_scanner()
+    N.scan()
