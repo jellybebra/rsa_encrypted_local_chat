@@ -4,7 +4,8 @@ import threading
 
 cl = Client()
 
-if cl.connect():
+ip = input('Enter the IP address if you have one // press Enter: ')
+if cl.connect(ip):
     cl.start()
 
 else:

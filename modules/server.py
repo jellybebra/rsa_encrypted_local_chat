@@ -1,6 +1,7 @@
 import socket
 import threading
 import base64
+import time
 
 if __name__ == '__main__':
     from constants import *
@@ -10,6 +11,8 @@ else:
 
 class Server:
     def __init__(self):
+        os.system('cls' if os.name == 'nt' else 'clear')
+
         # создаём полный адрес сервера
         self.__PORT = Messaging.PORT
         self.__SERVER_IP = socket.gethostbyname(socket.gethostname())
@@ -27,21 +30,20 @@ class Server:
         self.__FORMAT = Messaging.FORMAT
 
         # опознавательные знаки
-        self.__DISCONNECT_MSG = Messaging.DISCONNECT_MSG
         self.__WIDE_MSG = Messaging.WIDE_MSG
         self.__ENCRYPTED_MSG = Messaging.ENCRYPTED_MSG
         self.__KEY_REQUEST_MSG = Messaging.KEY_REQUEST_MSG
         self.__KEY_ANSWER_MSG = Messaging.KEY_ANSWER_MSG
 
-    def __active_names__(self) -> list:
+    def __active_names__(self) -> str:
         """
-        Возвращает список активных пользователей.
+        Возвращает список активных пользователей через пробел.
         """
-        # TODO: Переделать, чтоб возвращала строку.
 
-        names = []
+        names: list = []
         for client in self.__active_clients:
             names.append(client['name'])
+        names: str = ' '.join(names)
         return names
 
     def __wide_message__(self, message: str):
@@ -57,6 +59,23 @@ class Server:
         for client in self.__active_clients:
             client['conn'].send(encoded_message)
 
+    def __update_names__(self) -> None:
+        """
+        Обновляет доступных адресатов у всех клиентов.
+
+        :return: None
+        """
+
+        message: str = f'!ac {self.__active_names__()}'  # добавляем тэг
+        encoded_message: bytes = message.encode(self.__FORMAT)
+
+        # отправляем каждому клиенту
+        for client in self.__active_clients:
+            client['conn'].send(encoded_message)
+
+        if __name__ == '__main__':
+            print(f'\n[CONNECTIONS] Active users: {self.__active_names__()}\n')
+
     def __handle_client__(self, connection, address, name: str):
         # чтоб жёлтым не горело
         recipient: str = str()
@@ -68,45 +87,30 @@ class Server:
         while connected:
             try:
                 inc_message: str = connection.recv(self.__BPM).decode(self.__FORMAT)  # получаем новое сообщение
+
             except ConnectionResetError:  # если соединение потеряно
                 connected: bool = False  # прекращаем обслуживание клиента
 
-                # удаляем его данные
-                for num, client in enumerate(self.__active_clients):
+                for num, client in enumerate(self.__active_clients):  # удаляем его данные
                     if client['conn'] == connection:
                         self.__active_clients.pop(num)
                         break
 
                 # выведем сообщение об отключении пользователе и активных пользователях
-                removed_connection_msg = f'\n[CONNECTIONS] ({address[0]}, {name}) disconnected.' \
-                                         f'\n[CONNECTIONS] Active users: {self.__active_names__()}\n'
+                removed_connection_msg = f'\n[CONNECTIONS] ({address[0]}, {name}) disconnected.'
                 self.__wide_message__(removed_connection_msg)
+                self.__update_names__()
                 if __name__ == '__main__':
                     print(removed_connection_msg)
+
             else:
                 # отбрасываем тэг
-                for tag in [self.__DISCONNECT_MSG, self.__KEY_REQUEST_MSG, self.__ENCRYPTED_MSG]:
+                for tag in [self.__KEY_REQUEST_MSG, self.__ENCRYPTED_MSG]:
                     if tag in inc_message:
                         break
                 message: str = inc_message.replace(f'{tag} ', '')
 
-                if tag == self.__DISCONNECT_MSG:  # сообщение: {self.__DISCONNECT_MSG}
-                    connected: bool = False  # прекращаем обслуживание клиента
-
-                    # удаляем его данные
-                    for num, client in enumerate(self.__active_clients):
-                        if client['conn'] == connection:
-                            self.__active_clients.pop(num)
-                            break
-
-                    # выведем сообщение об отключении пользователе и активных пользователях
-                    removed_connection_msg = f'\n[CONNECTIONS] ({address[0]}, {name}) disconnected.' \
-                                             f'\n[CONNECTIONS] Active users: {self.__active_names__()}\n'
-                    self.__wide_message__(removed_connection_msg)
-                    if __name__ == '__main__':
-                        print(removed_connection_msg)
-
-                elif tag == self.__KEY_REQUEST_MSG:
+                if tag == self.__KEY_REQUEST_MSG:
                     recipient: str = message  # сообщение: {self.__KEY_REQUEST_MSG} {recipient}
 
                     # ищем ключ и сокет адресата
@@ -153,9 +157,19 @@ class Server:
             )
 
             # выведем сообщение о новом пользователе и активных пользователях
-            new_connection_msg = f'\n[CONNECTIONS] ({address[0]}, {name}) joined.' \
-                                 f'\n[CONNECTIONS] Active users: {self.__active_names__()}\n'
+            new_connection_msg = f'\n[CONNECTIONS] ({address[0]}, {name}) joined.'
+
             self.__wide_message__(new_connection_msg)
+            time.sleep(1)  # не убирай иначе блять соединятся 2 пакета какого-то хуя и у клиента будет этот монстр:
+            # !w
+            # [CONNECTIONS] (192.168.60.61, ll) joined.
+            # !ac ll
+            #
+            # п.с. это одним сообщением придёт сука
+            # TODO: попробовать уменьшить время
+
+            self.__update_names__()
+
             if __name__ == '__main__':
                 print(new_connection_msg)
 

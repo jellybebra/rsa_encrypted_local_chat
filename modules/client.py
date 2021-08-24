@@ -1,8 +1,9 @@
 import socket
-import sys
 import threading
 import time
 import base64
+
+# TODO: переделать структуру проекта (запихнуть rsa module, find host, constants в отдельную папку внутри модулей)
 
 if __name__ == '__main__':
     import rsa_module
@@ -28,22 +29,40 @@ class Client:
         self.__FORMAT = Messaging.FORMAT
 
         # опознавательные знаки
-        self.__DISCONNECT_MSG = Messaging.DISCONNECT_MSG
         self.__WIDE_MSG = Messaging.WIDE_MSG
         self.__ENCRYPTED_MSG = Messaging.ENCRYPTED_MSG
         self.__KEY_REQUEST_MSG = Messaging.KEY_REQUEST_MSG
         self.__KEY_ANSWER_MSG = Messaging.KEY_ANSWER_MSG
 
         # просим имя
-        # TODO: имя должно состоять из одного слова
-        # TODO: имя не должно содержать встроенных строк (!d, !e и т.п.)
-        self.__name: str = input(f"Please enter your name: {Style.GREEN1}")
-        print(Style.WHITE)
+        self.__name = None
+        while self.__name is None:
+            self.__name: str = input(f"Please enter your name: {Style.GREEN1}")
+            print(Style.WHITE, end='')
+
+            try:
+                tags = [
+                    self.__WIDE_MSG,
+                    self.__ENCRYPTED_MSG,
+                    self.__KEY_REQUEST_MSG,
+                    self.__KEY_ANSWER_MSG
+                ]
+
+                # имя должно состоять из одного слова
+                assert len(self.__name.split()) == 1
+
+                # в имени не должно быть тэгов
+                assert not any(tag in self.__name for tag in tags)
+
+            except AssertionError:
+                print(f'{Style.RED1}[ERROR]{Style.WHITE} Wrong format!')
+                self.__name = None
 
         # переменные
         self.__connected = None
         self.__recipient_pub_key = None
         self.__private_key, self.__pub_key = rsa_module.gen_keys()  # генерируем ключи шифрования (bytes)
+        # self.__active_names: list =
 
     def __identify__(self):
         """Отправляет имя, а потом ключ"""
@@ -57,8 +76,6 @@ class Client:
         while self.__connected:  # пока подключены
             input_msg: str = input()  # ждём новое сообщение от пользователя
 
-            # TODO: если запрос ключа не удался, т.к. такого пользователя нет среди активных, надо это написать
-
             try:
                 tags = [
                     self.__WIDE_MSG,
@@ -69,25 +86,24 @@ class Client:
                 # сообщение не должно быть пустым
                 assert len(input_msg.split()) >= 1
 
-                # сообщение не должно содержать тэги, кроме !d
+                # сообщение не должно содержать тэги
                 assert not any(tag in input_msg for tag in tags)
 
-                # если это не сообщение об отключении, то оно должно быть формата: {получатель} {сообщение}
-                if self.__DISCONNECT_MSG not in input_msg:
-                    assert len(input_msg.split()) > 1
+                # сообщение должно состоять минимум из 2х слов: {получатель} {сообщение}
+                assert len(input_msg.split()) >= 2
+
             except AssertionError:
                 print(f'{Style.RED1}[ERROR]{Style.WHITE} Wrong format.')
             else:
-                if self.__DISCONNECT_MSG in input_msg:
-                    encoded_message: bytes = input_msg.encode(self.__FORMAT)
-                    self.__CLIENT.send(encoded_message)
+                # message: {адресат} {сообщение}
+                input_msg: list = input_msg.split(' ')
+                recipient: str = input_msg[0]
 
-                    print(f'\n[CONNECTION] {Style.GREEN2}DISCONNECTED.{Style.WHITE}\n')
-                    sys.exit()  # выключаемся
-
-                else:  # message: {адресат} {сообщение}
-                    input_msg: list = input_msg.split(' ')
-                    recipient: str = input_msg[0]
+                try:
+                    assert recipient in self.__active_names  # TODO: проверка на наличие получателя в активных юзерах
+                except AssertionError:
+                    print(f'{Style.RED1}[ERROR]{Style.WHITE} No such person on the server.')
+                else:
                     message: str = ' '.join(input_msg[1:])
 
                     # шлём запрос на ключ
@@ -115,13 +131,13 @@ class Client:
             inbox: str = self.__CLIENT.recv(self.__BPM).decode(self.__FORMAT)
 
             # отбрасываем тэг
-            for tag in [self.__WIDE_MSG, self.__KEY_ANSWER_MSG, self.__ENCRYPTED_MSG]:
+            for tag in [self.__WIDE_MSG, self.__KEY_ANSWER_MSG, self.__ENCRYPTED_MSG, '!ac']:
                 if tag in inbox:
                     break
             message: str = inbox.replace(f'{tag} ', '')
 
             if tag == self.__WIDE_MSG:
-                print(message)
+                print(message)  # TODO: почему-то сюда попадает голое сообщение
 
             elif tag == self.__KEY_ANSWER_MSG:
                 self.__recipient_pub_key = base64.b64decode(message)  # записываем, чтобы использовать в __send__
@@ -136,6 +152,10 @@ class Client:
                     print(f'{Style.GREEN1}[you]{Style.WHITE} {message}')
                 else:
                     print(f'{Style.RED2}{name}{Style.WHITE} {message}')
+
+            elif tag == '!ac':
+                self.__active_names: list = message.split(' ')
+                print(f'[CONNECTIONS] Active users: {self.__active_names}\n')
 
     def connect(self, ip=''):
         """
@@ -195,8 +215,9 @@ class Client:
         receive.start()
 
         # выводим правила пользования
-        print(f'\nPlease, type "{Style.RED1}{self.__DISCONNECT_MSG}{Style.WHITE}" when you\'re done.'
-              '\nMessage format: {recipient\'s name} {message}\n')
+        rules = f'\n{Style.CYAN1}Disconnection:{Style.WHITE} Close the app.' + \
+                f'\n{Style.CYAN1}Message format:{Style.WHITE} ' + '{recipient\'s name} {message}\n '
+        print(rules)
 
 
 if __name__ == '__main__':

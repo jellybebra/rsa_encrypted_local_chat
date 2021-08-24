@@ -1,6 +1,11 @@
 from Crypto.PublicKey import RSA
 from Crypto.Cipher import PKCS1_OAEP
-from modules.constants import *
+if __name__ == '__main__':
+    from constants import *
+else:
+    from modules.constants import *
+
+
 import base64
 
 _FORMAT = Messaging.FORMAT
