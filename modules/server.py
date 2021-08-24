@@ -1,6 +1,7 @@
 import socket
 import threading
 import base64
+
 if __name__ == '__main__':
     from constants import *
 else:
@@ -35,135 +36,131 @@ class Server:
     def __active_names__(self) -> list:
         """
         Возвращает список активных пользователей.
-        Переделать, чтоб возвращала строку.
         """
+        # TODO: Переделать, чтоб возвращала строку.
 
         names = []
         for client in self.__active_clients:
             names.append(client['name'])
         return names
 
-    def __wide_message__(self, msg: str):
+    def __wide_message__(self, message: str):
         """
         Отправляет данное сообщение всем активным пользователям.
 
-        :param msg: сообщение, которое вы хотите разослать
+        :param message: сообщение, которое вы хотите разослать
         """
-        # добавляем опознавательный знак
-        msg = f'{self.__WIDE_MSG} {msg}'
-
-        # кодируем сообщение
-        msg = msg.encode(self.__FORMAT)
+        message: str = f'{self.__WIDE_MSG} {message}'  # добавляем тэг
+        encoded_message: bytes = message.encode(self.__FORMAT)
 
         # отправляем каждому клиенту
         for client in self.__active_clients:
-            client['conn'].send(msg)
+            client['conn'].send(encoded_message)
 
-    def __handle_client__(self, conn, addr, name: str):
-        # инициализация всякой хрени, чтоб жёлтым не горело
-        recipient = str()
-        recipient_pub_key = bytes()
+    def __handle_client__(self, connection, address, name: str):
+        # чтоб жёлтым не горело
+        recipient: str = str()
+        recipient_pub_key: bytes = bytes()
         recipient_conn = None
 
         # будем обслуживать, пока не отключится
         connected = True
-
         while connected:
-            # принимаем новое сообщение (ждём)
-            inc_message = conn.recv(self.__BPM).decode(self.__FORMAT)  # bytes -> str
+            try:
+                inc_message: str = connection.recv(self.__BPM).decode(self.__FORMAT)  # получаем новое сообщение
+            except ConnectionResetError:  # если соединение потеряно
+                connected: bool = False  # прекращаем обслуживание клиента
 
-            # если это сообщение об отключении
-            if self.__DISCONNECT_MSG in inc_message:
-                # полученное сообщение: {self.__DISCONNECT_MSG}
-
-                # прекращаем обслуживание клиента
-                connected = False
-
-                # TODO: исправить кусок снизу -- он не удаляет нифига
                 # удаляем его данные
-                for client in self.__active_clients:
-                    if client['conn'] == conn:
-                        del client
+                for num, client in enumerate(self.__active_clients):
+                    if client['conn'] == connection:
+                        self.__active_clients.pop(num)
                         break
 
-                # отображаем это действие на сервере
-                rm_con_message = f'\n[CONNECTIONS] ({addr[0]}, {name}) disconnected.' \
-                                 f'\n[CONNECTIONS] Active users: {self.__active_names__()}\n'
+                # выведем сообщение об отключении пользователе и активных пользователях
+                removed_connection_msg = f'\n[CONNECTIONS] ({address[0]}, {name}) disconnected.' \
+                                         f'\n[CONNECTIONS] Active users: {self.__active_names__()}\n'
+                self.__wide_message__(removed_connection_msg)
                 if __name__ == '__main__':
-                    print(rm_con_message)
-
-                # уведомим всех активных клиентов
-                self.__wide_message__(rm_con_message)
-
-            # если это запрос на ключ
-            elif self.__KEY_REQUEST_MSG in inc_message:
-                # полученное сообщение: {self.__KEY_REQUEST_MSG} {recipient}
-
-                # напечатаем запрос на экране
-                if __name__ == '__main__':
-                    print(f'[{name}] {inc_message}')
-
-                # вытаскиваем адресата
-                recipient = inc_message.split(' ')[1]
-
-                # ищем ключ и сокет адресата
-                for client in self.__active_clients:
-                    if client['name'] == recipient:
-                        recipient_pub_key = client['pub_key']
-                        recipient_conn = client['conn']
+                    print(removed_connection_msg)
+            else:
+                # отбрасываем тэг
+                for tag in [self.__DISCONNECT_MSG, self.__KEY_REQUEST_MSG, self.__ENCRYPTED_MSG]:
+                    if tag in inc_message:
                         break
+                message: str = inc_message.replace(f'{tag} ', '')
 
-                # отправляем ключ (вот тут могут быть баги)
-                recipient_pub_key = base64.b64encode(recipient_pub_key)  # bytes -> bytes
-                answer = f'{self.__KEY_ANSWER_MSG} '.encode(self.__FORMAT) + recipient_pub_key  # bytes + bytes
-                conn.send(answer)
+                if tag == self.__DISCONNECT_MSG:  # сообщение: {self.__DISCONNECT_MSG}
+                    connected: bool = False  # прекращаем обслуживание клиента
 
-            # если это зашифрованное сообщение
-            elif self.__ENCRYPTED_MSG in inc_message:
-                # полученное сообщение: {self.__ENCRYPTED_MSG} {encrypted encoded message}
+                    # удаляем его данные
+                    for num, client in enumerate(self.__active_clients):
+                        if client['conn'] == connection:
+                            self.__active_clients.pop(num)
+                            break
 
-                # напечатаем сообщение на экране
-                if __name__ == '__main__':
-                    print(f'[{name}] to [{recipient}] {inc_message}')
+                    # выведем сообщение об отключении пользователе и активных пользователях
+                    removed_connection_msg = f'\n[CONNECTIONS] ({address[0]}, {name}) disconnected.' \
+                                             f'\n[CONNECTIONS] Active users: {self.__active_names__()}\n'
+                    self.__wide_message__(removed_connection_msg)
+                    if __name__ == '__main__':
+                        print(removed_connection_msg)
 
-                # добавим в сообщение имя отправителя
-                encr_message = inc_message.split(' ')[1].encode(self.__FORMAT)
-                new_message = f'{self.__ENCRYPTED_MSG} [{name}] '.encode(self.__FORMAT) + encr_message
+                elif tag == self.__KEY_REQUEST_MSG:
+                    recipient: str = message  # сообщение: {self.__KEY_REQUEST_MSG} {recipient}
 
-                # пересылаем новое сообщение адресату
-                recipient_conn.send(new_message)
+                    # ищем ключ и сокет адресата
+                    for client in self.__active_clients:
+                        if client['name'] == recipient:
+                            recipient_pub_key: bytes = client['pub_key']
+                            recipient_conn = client['conn']
+                            break
+
+                    # отправляем ключ
+                    recipient_pub_key: bytes = base64.b64encode(recipient_pub_key)  # bytes -> bytes
+                    tag_and_key: bytes = f'{self.__KEY_ANSWER_MSG} '.encode(self.__FORMAT) + recipient_pub_key
+                    connection.send(tag_and_key)
+
+                elif tag == self.__ENCRYPTED_MSG:  # сообщение: {self.__ENCRYPTED_MSG} {encrypted encoded message}
+                    if __name__ == '__main__':
+                        print(f'[{name}] to [{recipient}]: {message}')
+
+                    # добавим в сообщение имя отправителя
+                    encrypted_message: bytes = message.encode(self.__FORMAT)
+                    new_message: bytes = f'{self.__ENCRYPTED_MSG} [{name}] '.encode(self.__FORMAT) + encrypted_message
+
+                    # пересылаем новое сообщение адресату
+                    recipient_conn.send(new_message)
 
     def start(self):
         self.__SERVER.listen()  # слушаем порт
         print(f"{Style.CYAN1}[SERVER]{Style.WHITE} Server started {self.__ADDRESS}.")
 
-        # пока не выключим программу,
-        # обрабатываем каждое новое подключение
         while True:
-            # ждём и записываем данные
-            conn, addr = self.__SERVER.accept()  # сокет, IP и порт
-            name = conn.recv(self.__BPM).decode(self.__FORMAT)  # имя (bytes -> str)
-            pub_key = conn.recv(self.__BPM)  # public key (bytes)
-            self.__active_clients.append(  # обновляем активные подключения
+            # ждём и записываем данные нового подключения
+            conn, address = self.__SERVER.accept()  # сокет, IP и порт
+            name: str = conn.recv(self.__BPM).decode(self.__FORMAT)  # имя
+            pub_key: bytes = conn.recv(self.__BPM)  # public key
+
+            # обновляем активные подключения
+            self.__active_clients.append(
                 {
                     'conn': conn,
-                    'addr': addr,
+                    'address': address,
                     'name': name,
                     'pub_key': pub_key
                 }
             )
 
             # выведем сообщение о новом пользователе и активных пользователях
-            new_conn_message = f'\n[CONNECTIONS] ({addr[0]}, {name}) joined.' \
-                               f'\n[CONNECTIONS] Active users: {self.__active_names__()}\n'
+            new_connection_msg = f'\n[CONNECTIONS] ({address[0]}, {name}) joined.' \
+                                 f'\n[CONNECTIONS] Active users: {self.__active_names__()}\n'
+            self.__wide_message__(new_connection_msg)
             if __name__ == '__main__':
-                print(new_conn_message)
+                print(new_connection_msg)
 
-            # уведомим всех о новом подключении и всех активных пользователях
-            self.__wide_message__(new_conn_message)
-
-            # начинаем обслуживать данного клиента
-            handle_client = threading.Thread(target=self.__handle_client__, args=(conn, addr, name))
+            # начинаем обслуживать, обрабатывать данного клиента
+            handle_client = threading.Thread(target=self.__handle_client__, args=(conn, address, name))
             handle_client.start()
 
 

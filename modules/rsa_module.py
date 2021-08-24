@@ -9,6 +9,7 @@ _FORMAT = Messaging.FORMAT
 def gen_keys(bits: int = 1024) -> tuple:
     """
     Генерирует ключи.
+
     :param bits: количество бит ключа (нельзя зашифровать сообщение ключом, который короче соообщения)
     :return: кортеж из ключей (закрытый, открытый) в байтовом формате для отправки через сокет
     """
@@ -20,10 +21,11 @@ def gen_keys(bits: int = 1024) -> tuple:
     return private_key, public_key
 
 
-def encrypt(public_key: bytes, msg: str) -> bytes:
+def encrypt(public_key: bytes, message: str) -> bytes:
     """
     Шифрует сообщение данным ключом.
-    :param msg: сообщение
+
+    :param message: сообщение
     :param public_key: открытый ключ
     :return: зашифрованное сообщение
     """
@@ -31,8 +33,8 @@ def encrypt(public_key: bytes, msg: str) -> bytes:
     public_key = RSA.importKey(public_key)  # bytes -> object
     cipher = PKCS1_OAEP.new(public_key)  # ничего не понятно
 
-    msg: bytes = msg.encode(_FORMAT)  # str -> bytes
-    encrypted_message: bytes = cipher.encrypt(msg)  # зашифрованное сообщение = шифр.зашифровать(сообщение)
+    message: bytes = message.encode(_FORMAT)  # str -> bytes
+    encrypted_message: bytes = cipher.encrypt(message)  # зашифрованное сообщение = шифр.зашифровать(сообщение)
     encrypted_encoded_message: bytes = base64.b64encode(encrypted_message)  # для отправки через сокет
 
     return encrypted_encoded_message
@@ -41,6 +43,7 @@ def encrypt(public_key: bytes, msg: str) -> bytes:
 def decrypt(private_key: bytes, encrypted_encoded_message: bytes) -> str:
     """
     Расшифровывает закодированное с помощью base64 зашифрованное данным ключом сообщение.
+
     :param encrypted_encoded_message: зашифрованное, закодированное сообщение
     :param private_key: закрытый ключ
     :return: расшифрованное сообщение
