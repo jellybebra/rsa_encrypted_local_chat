@@ -3,11 +3,14 @@ import sys
 import threading
 import time
 import base64
-from modules import rsa_module
-from modules.find_host_ip import Network
-from modules.constants import *
-
-# TODO: если сообщение пустое, не реагировать
+if __name__ == '__main__':
+    import rsa_module
+    from find_host_ip import Network
+    from constants import *
+else:
+    from modules import rsa_module
+    from modules.find_host_ip import Network
+    from modules.constants import *
 
 
 class Client:
@@ -31,11 +34,15 @@ class Client:
         self.__KEY_REQUEST_MSG = Messaging.KEY_REQUEST_MSG
         self.__KEY_ANSWER_MSG = Messaging.KEY_ANSWER_MSG
 
+        # просим имя
+        # TODO: имя должно состоять из одного слова
+        # TODO: имя не должно содержать встроенных строк (!d, !e и т.п.)
+        self.__name: str = input(f"Please enter your name: {Style.GREEN1}")
+        print(Style.WHITE)
+
         # переменные
         self.__connected = None
         self.__recipient_pub_key = None
-        self.__name = input(f"Please enter your name: {Style.GREEN1}")
-        print(Style.WHITE)
         self.__priv_key, self.__pub_key = rsa_module.gen_keys()  # генерируем ключи шифрования (bytes)
 
     def __identify__(self):
@@ -47,30 +54,24 @@ class Client:
         self.__CLIENT.send(pub_key)
 
     def __send__(self):
-        # пока подключены
-        while self.__connected:
-            # ждём новое сообщение
-            full_message = input()
+        while self.__connected:  # пока подключены
+            input_msg: str = input()  # ждём новое сообщение
+            # TODO: сообщение не должно быть пустым
+            # TODO: сообщение не должно содержать тэги
 
-            # если это сообщение об отключении
-            if self.__DISCONNECT_MSG in full_message:
-                # отправляем сообщение
-                full_message = full_message.encode(self.__FORMAT)  # str -> bytes
-                self.__CLIENT.send(full_message)
+            if self.__DISCONNECT_MSG in input_msg:  # message: '!d'
+                encoded_message: bytes = input_msg.encode(self.__FORMAT)  # str -> bytes
+                self.__CLIENT.send(encoded_message)
 
-                # отображаем на экране
-                print(f'\n[CONNECTION] {Style.GREEN2}Disconnected successfully.{Style.WHITE}\n')
+                print(f'\n[CONNECTION] {Style.GREEN2}DISCONNECTED.{Style.WHITE}\n')
 
-                # выключаемся
-                sys.exit()
+                sys.exit()  # выключаемся
 
-            # если это просто сообщение
-            else:
-                # формат сообщения: {адресат} {сообщение}
-                full_message = full_message.split(' ')
-                recipient = full_message[0]
-                del full_message[0]
-                message = ' '.join(full_message)
+            else:  # message: {адресат} {сообщение}
+                input_msg: list = input_msg.split(' ')
+                recipient: str = input_msg[0]
+                del input_msg[0]
+                message: str = ' '.join(input_msg)
 
                 # шлём запрос на ключ
                 key_request = f'{self.__KEY_REQUEST_MSG} {recipient}'.encode(self.__FORMAT)
@@ -95,107 +96,85 @@ class Client:
             self.__CLIENT.settimeout(None)  # TODO: проверить, работает ли без этой строки
 
             # принимаем новое сообщение: {префикс} {само сообщение}
-            inbox = self.__CLIENT.recv(self.__BPM).decode(self.__FORMAT)
+            inbox: str = self.__CLIENT.recv(self.__BPM).decode(self.__FORMAT)
 
             # отбрасываем префикс
             for index in [self.__WIDE_MSG, self.__KEY_ANSWER_MSG, self.__ENCRYPTED_MSG]:
                 if index in inbox:
                     break
-            message = inbox.replace(f'{index} ', '')  # TODO: проверить, работает это или нужно запихнуть обратно в цикл
+            message: str = inbox.replace(f'{index} ', '')
 
             if index == self.__WIDE_MSG:
-                print(message)  # выводим на экран
+                print(message)
 
-            if index == self.__KEY_ANSWER_MSG:
-                # полученное сообщение - это закодированный ключ; записываем его, чтобы использовать в __send__
-                self.__recipient_pub_key = base64.b64decode(message)
+            elif index == self.__KEY_ANSWER_MSG:
+                self.__recipient_pub_key = base64.b64decode(message)  # записываем, чтобы использовать в __send__
 
-            if index == self.__ENCRYPTED_MSG:  # сообщение: [{name}] {encrypted message}
-                # запишем имя и сообщение
+            elif index == self.__ENCRYPTED_MSG:  # сообщение: [{name}] {encrypted message}
                 name, encrypted_message = message.split(' ')
+                # кодируем обратно (т.к. случано эту часть раскодировали)
                 encrypted_message = encrypted_message.encode(self.__FORMAT)
                 message = rsa_module.decrypt(self.__priv_key, encrypted_message)
 
-                # выведем на экран
                 if name == f'[{self.__name}]':
                     print(f'{Style.GREEN1}[you]{Style.WHITE} {message}')
                 else:
                     print(f'{Style.RED2}{name}{Style.WHITE} {message}')
 
-    def connect(self):
+    def connect(self, ip=''):
         """
-        Ищем сервер и подключаемся к нему.
-        Ничего не трогай. Работает.
-
+        Ищет сервер (если не задан) и подключается к нему.
+        :param ip: если дали ip, то не ищет в локальной сети
         :return: успех операции
         """
 
-        def try_to_connect(hosts):
+        def connect_attempt(hosts: list):
             """
-            Попытаться подключиться
+            Попытаться подключиться к кому-нибудь из списка.
             :return: успех/неудача
             """
 
-            # для каждого полученного адреса
             for host in hosts:
-                # выводим сообщение о том, к какому адресу пытаемся подключиться
                 print(f'[CONNECTING] Attempt to connect to {host}...', end=' ')
 
                 try:
-                    # пытаемся подключиться
                     ADDRESS = (host, self.__PORT)
-                    self.__CLIENT = socket.create_connection(ADDRESS, timeout=0.5)
-
-                    # если не появилась ошибка, значит подключились, запишем это
+                    self.__CLIENT = socket.create_connection(ADDRESS, timeout=0.5)  # TODO: попробовать снизить таймаут
+                except socket.timeout:
+                    print(f'{Style.RED1}FAILED{Style.WHITE}.')
+                else:  # если ошибок не появилось
                     self.__connected = True
-
-                    # выводим сообщение об успехе на экран
                     print(f'{Style.GREEN2}SUCCEEDED{Style.WHITE}.')
-
-                    # прекращаем поиск
                     break
 
-                # в случае неудачного подключения
-                except:  # TODO: узнать че тут за ошибка
-                    # выводим сообщение о неудаче на экран
-                    print(f'{Style.RED1}FAILED{Style.WHITE}.')
+        hosts = []
+        if ip != '':
+            hosts = Network().scan()  # ищем хостов
+        else:
+            hosts.append(ip)
 
-        # пытаемся быстро подключиться
-        hosts = Network().scan(mode='fast')
-        try_to_connect(hosts)
+        # пытаемся подключиться
+        connect_attempt(hosts)
 
-        # # если не удалось
-        # if not self.__connected:
-        #     # выводим сообщение об этом
-        #     print(f'[CONNECTING] {Style.RED1}Failed to connect to any host.{Style.WHITE} Going for a rescan...')
-        #
-        #     # пробуем еще раз, но безопасно
-        #     hosts = Network().scan(mode='safe')
-        #     try_to_connect(hosts)
-
-        # сотрём всю хуйню, которую написали
+        # перейдём в экран "после попыток подключения"
         import os
         os.system('cls' if os.name == 'nt' else 'clear')
-
-        # выводим результат этих махинаций
         print(f"[CONNECTING] Connection {f'{Style.RED1}FAILED{Style.WHITE}' if not self.__connected else f'{Style.GREEN2}COMPLETED{Style.WHITE}'}.")
 
-        # возвращаем этот результат
         return self.__connected
 
     def start(self):
         # авторизируемся
         self.__identify__()
 
-        # начинаем отправлять сообщения
         send = threading.Thread(target=self.__send__)
-        send.start()
-
-        # начинаем принимать сообщения
         receive = threading.Thread(target=self.__receive__)
+
+        # начинаем отправлять и принимать сообщения сообщения
+        send.start()
         receive.start()
 
-        # открываем пользовательский интерфейс
+        # выводим правила пользования
         print(f'\nPlease, type "{Style.BLUE1}{self.__DISCONNECT_MSG}{Style.WHITE}" when you\'re done.'
               '\nMessage format: {recipient\'s name} {message}\n')
 
@@ -203,7 +182,5 @@ class Client:
 if __name__ == '__main__':
     cl = Client()
 
-    # если присоединились
     if cl.connect():
-        # запускаем обмен сообщениями
         cl.start()

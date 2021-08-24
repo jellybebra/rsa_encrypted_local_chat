@@ -1,10 +1,10 @@
 import socket
 import threading
 import base64
-from modules.constants import *
-
-
-# TODO: если сообщение пустое, не реагировать
+if __name__ == '__main__':
+    from constants import *
+else:
+    from modules.constants import *
 
 
 class Server:
@@ -26,8 +26,6 @@ class Server:
         self.__FORMAT = Messaging.FORMAT
 
         # опознавательные знаки
-        self.__SERVER_SIGN = f'{Style.CYAN1}[SERVER]{Style.WHITE}'
-
         self.__DISCONNECT_MSG = Messaging.DISCONNECT_MSG
         self.__WIDE_MSG = Messaging.WIDE_MSG
         self.__ENCRYPTED_MSG = Messaging.ENCRYPTED_MSG
@@ -136,9 +134,8 @@ class Server:
                 recipient_conn.send(new_message)
 
     def start(self):
-        # открываем и слушаем порт
-        self.__SERVER.listen()
-        print(f"{self.__SERVER_SIGN} Server started {self.__ADDRESS}.")
+        self.__SERVER.listen()  # слушаем порт
+        print(f"{Style.CYAN1}[SERVER]{Style.WHITE} Server started {self.__ADDRESS}.")
 
         # пока не выключим программу,
         # обрабатываем каждое новое подключение

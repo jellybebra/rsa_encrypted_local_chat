@@ -2,22 +2,20 @@ from modules.client import Client
 from modules.server import Server
 import threading
 
+# запускаем клиент
 cl = Client()
 
 # если присоединились
 if cl.connect():
-    # запускаем отправку/приём сообщений
     cl.start()
 
-# иначе
 else:
     # запускаем сервер
     s = Server()
-    t1 = threading.Thread(target=s.start)
-    t1.start()
+    server = threading.Thread(target=s.start)
+    server.start()
 
     # запускаем клиент
-    if cl.connect():
-        # запускаем отправку/приём сообщений
-        t2 = threading.Thread(target=cl.start)
-        t2.start()
+    cl.connect()
+    client = threading.Thread(target=cl.start)
+    client.start()

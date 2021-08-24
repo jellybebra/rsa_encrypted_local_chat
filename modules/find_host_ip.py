@@ -16,21 +16,15 @@ class Network(object):
         ROUTER_IP = '.'.join(ROUTER_IP)
         self.ip = ROUTER_IP
 
-        # выводим полученный IP на экран
-        print(f'[SCANNING] {self.ip} is taken for the router\'s default IP address.')
+        print(f'[SCANNING] {self.ip} is taken for the network\'s IP address.')
 
-    def scan(self, mode='safe'):
+    def scan(self):
         """
         Scans the local network for hosts.
 
         :param mode: defines the guaranty of finding a server
         :return: list of hosts in the network
         """
-
-        # определяет гарантию нахождения сервера
-        timeout = .04
-        if mode == 'fast':
-            timeout = .02
 
         def is_host(addr):
             """
@@ -53,20 +47,17 @@ class Network(object):
         # выводим на экран сообщение о начале поиска сервера
         print('[SCANNING] Scanning. Please wait...')
 
-        # включаем секундомер
-        t1 = datetime.now()
+        t1 = datetime.now()  # включаем секундомер
 
-        # подготавливаем шаблон для перебора адресов
+        # подготавливаем шаблон для перебора адресов: что-то вроде '192.168.60'
         net = self.ip.split('.')
         net.pop()
         net = '.'.join(net)
-        # получили что-то вроде '192.168.60'
 
-        # объявляем переменную для записи результата поиска
-        hosts = []
+        hosts = []  # сюда запишем результаты поиска
 
-        # не трогай, опасно
-        socket.setdefaulttimeout(timeout)
+        timeout = .02  # .04 для 100% нахождения
+        socket.setdefaulttimeout(timeout)  # без этого не работает
 
         # начинаем перебор
         for ip in range(1, 255):
@@ -80,16 +71,11 @@ class Network(object):
                 # выводим IP на экран
                 print(f"[SCANNING] {address} is hosting.")
 
-        # не трогай, опасно
-        socket.setdefaulttimeout(None)
+        socket.setdefaulttimeout(None)  # без этого не работает
 
-        # останавливаем таймер
-        t2 = datetime.now()
-
-        # выводим время поиска подозреваемых серверов на экран
+        t2 = datetime.now()  # останавливаем секундомер
         print(f"[SCANNING] Scanning completed in: {t2 - t1}")
 
-        # возвращаем результат поиска
         return hosts
 
 

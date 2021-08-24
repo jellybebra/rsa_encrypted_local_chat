@@ -5,10 +5,10 @@ os.system("")  # включает цвета в CMD
 
 
 class Messaging:
-    DISCONNECT_MSG = '!d'
+    DISCONNECT_MSG = '!d'  # сообщение об отключении
     WIDE_MSG = '!w'  # широковещательное сообщение
-    ENCRYPTED_MSG = '!e'
-    KEY_REQUEST_MSG = '!kr'
+    ENCRYPTED_MSG = '!e'  # зашифрованное сообщение
+    KEY_REQUEST_MSG = '!kr'  # запрос ключа
     KEY_ANSWER_MSG = '!ka'  # ответ на запрос ключа
     PORT = 5050
     BPM = 512  # Bits Per Message - число бит для кодир-я 1 сообщения (взяли максимальное из-за лени)
