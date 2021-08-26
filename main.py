@@ -1,11 +1,21 @@
-from modules.client import Client
-from modules.server import Server
+import time
 import threading
+from chat.client import Client
+from chat.server import Server
+from chat.modules.network_scanner import Network
+from chat.modules.constants import Style
 
 cl = Client()
 
-ip = input('Enter the IP address if you have one // press Enter: ')
-if cl.connect(ip):
+ip = input(f'Enter the IP address (or press Enter): {Style.GREEN2}')
+print(f'{Style.WHITE}', end='')
+
+if ip == '':
+    hosts = Network().scan()
+else:
+    hosts = [ip]
+
+if cl.connect(hosts):
     cl.start()
 
 else:
@@ -13,6 +23,7 @@ else:
     server = threading.Thread(target=s.start)
     server.start()
 
-    cl.connect()
+    time.sleep(1)
+    cl.connect(hosts)
     client = threading.Thread(target=cl.start)
     client.start()
