@@ -42,7 +42,7 @@ class Client:
 
         # просим имя
         while True:
-            name: str = input(f"Please enter your name: {Style.GREEN1}")
+            name: str = input(f"Please enter your name: {Style.GREEN}")
             print(Style.WHITE, end='')
 
             try:
@@ -149,7 +149,7 @@ class Client:
                     message = encryption.decrypt(self.__private_key, encrypted_encoded_message)
 
                     if name == f'[{self.__name}]':
-                        print(f'{Style.GREEN1}[you]{Style.WHITE} {message}')
+                        print(f'{Style.GREEN}[you]{Style.WHITE} {message}')
                     else:
                         print(f'{Style.RED2}{name}{Style.WHITE} {message}')
 
@@ -178,14 +178,14 @@ class Client:
                 print(f'{Style.RED1}FAILED{Style.WHITE}: Other error.')
             else:  # если ошибок не появилось
                 self.__connected = True
-                print(f'{Style.GREEN2}SUCCEEDED{Style.WHITE}.')
+                print(f'{Style.GREEN}SUCCEEDED{Style.WHITE}.')
                 break
 
         # перейдём в экран "после попыток подключения"
         # import os
         # os.system('cls' if os.name == 'nt' else 'clear')
         print(f"[CONNECTING] Connection "
-              f"{f'{Style.RED1}FAILED' if not self.__connected else f'{Style.GREEN2}COMPLETED'}",
+              f"{f'{Style.RED1}FAILED' if not self.__connected else f'{Style.GREEN}COMPLETED'}",
               end=f'{Style.WHITE}.\n')
 
         return self.__connected
@@ -202,15 +202,15 @@ class Client:
         send.start()
 
         # выводим правила пользования
-        rules = f'\n{Style.CYAN1}Disconnection:{Style.WHITE} Close the app.' + \
-                f'\n{Style.CYAN1}Message format:{Style.WHITE} ' + '{recipient\'s name} {message} '
+        rules = f'\n{Style.CYAN}Disconnection:{Style.WHITE} Close the app.' + \
+                f'\n{Style.CYAN}Message format:{Style.WHITE} ' + '{recipient\'s name} {message} '
         print(rules)
 
 
 if __name__ == '__main__':
     cl = Client()
 
-    ip = input(f'Enter the IP address (or press Enter): {Style.GREEN2}')
+    ip = input(f'Enter the IP address (or press Enter): {Style.GREEN}')
     print(f'{Style.WHITE}', end='')
 
     if ip == '':

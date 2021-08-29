@@ -142,9 +142,9 @@ class Server:
 
     def start(self):
         self.__SERVER.listen()  # слушаем порт
-        print(f"{Style.CYAN1}[SERVER]{Style.WHITE} Server started.\n"
-              f"{Style.CYAN1}[SERVER]{Style.WHITE} Private IP address: {self.__SERVER_IP}:{self.__PORT}.\n"
-              f"{Style.CYAN1}[SERVER]{Style.WHITE} Public IP address: {self.__PUBLIC_SERVER_IP}:{self.__PORT}.")
+        print(f"{Style.CYAN}[SERVER]{Style.WHITE} Server started.\n"
+              f"{Style.CYAN}[SERVER]{Style.WHITE} Private IP address: {self.__SERVER_IP}:{self.__PORT}.\n"
+              f"{Style.CYAN}[SERVER]{Style.WHITE} Public IP address: {self.__PUBLIC_SERVER_IP}:{self.__PORT}.")
 
         while True:
             # ждём и записываем данные нового подключения

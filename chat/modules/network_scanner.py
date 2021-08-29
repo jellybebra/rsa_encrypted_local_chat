@@ -50,6 +50,6 @@ class Network(object):
                 print(f"[SCANNING] {adr} is hosting.")
 
         socket.setdefaulttimeout(None)  # без этого не работает
-        print(f"[SCANNING] Scanning {Style.GREEN2}COMPLETED{Style.WHITE}.")
+        print(f"[SCANNING] Scanning {Style.GREEN}COMPLETED{Style.WHITE}.")
 
         return hosts
