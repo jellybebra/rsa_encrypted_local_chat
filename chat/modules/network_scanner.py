@@ -14,14 +14,10 @@ class Network(object):
 
     def scan(self) -> list:
         """
-        Scans the local network for hosts.
+        Scans the local network for hosts in the current subnet.
 
         :return: hosts in the network
         """
-
-        # TODO: Если в сети больше чем 254 компа, то возможно не сработает. Прочитай про маски подсети.
-        #  https://stackoverflow.com/questions/11453378/get-network-address-and-network-mask-in-python
-        #  https://stackoverflow.com/questions/936444/retrieving-network-mask-in-python/2649654
 
         def is_host(address) -> bool:
             """
