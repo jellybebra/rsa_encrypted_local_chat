@@ -12,6 +12,8 @@ else:  # если используется как модуль
     from .modules.constants import *
 
 
+# TODO: В чате автоматически должно вводиться сразу имя предыдущего recipient
+
 class Client:
     def __init__(self):
         # очищаем экран
@@ -194,17 +196,17 @@ class Client:
         # авторизируемся
         self.__identify__()
 
+        # выводим правила пользования
+        rules = f'\n{Style.CYAN}Disconnection:{Style.WHITE} Close the app.' + \
+                f'\n{Style.CYAN}Message format:{Style.WHITE} ' + '{recipient\'s name} {message} '
+        print(rules)
+
         receive = threading.Thread(target=self.__receive__)
         send = threading.Thread(target=self.__send__)
 
         # начинаем отправлять и принимать сообщения сообщения
         receive.start()
         send.start()
-
-        # выводим правила пользования
-        rules = f'\n{Style.CYAN}Disconnection:{Style.WHITE} Close the app.' + \
-                f'\n{Style.CYAN}Message format:{Style.WHITE} ' + '{recipient\'s name} {message} '
-        print(rules)
 
 
 if __name__ == '__main__':

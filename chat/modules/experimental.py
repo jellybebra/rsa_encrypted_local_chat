@@ -41,3 +41,8 @@ def printer(msg):
 
 
 printer("Hello")
+
+class Test:
+    @classmethod
+    def bruh(cls):
+        return ...
