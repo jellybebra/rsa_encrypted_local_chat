@@ -1,3 +1,7 @@
+import os
+os.system("")  # включает цвета в CMD
+
+
 class Messaging:
     WIDE_MSG = '!w'  # широковещательное сообщение
     ENCRYPTED_MSG = '!e'  # зашифрованное сообщение
@@ -10,9 +14,6 @@ class Messaging:
 
 
 class Style:
-    import os
-    os.system("")  # включает цвета в CMD
-
     WHITE = '\033[0m'
     GREEN = '\033[32m'
     CYAN = '\033[36m'
