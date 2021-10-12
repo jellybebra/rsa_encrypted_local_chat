@@ -1,8 +1,5 @@
 import socket
-if __name__ == '__main__':
-    from constants import Style
-else:
-    from .constants import Style
+from .constants import Style
 
 
 class Network(object):

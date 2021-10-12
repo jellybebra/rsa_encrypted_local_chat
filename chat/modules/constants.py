@@ -8,7 +8,7 @@ class Messaging:
     KEY_REQUEST_MSG = '!kr'  # запрос ключа
     KEY_ANSWER_MSG = '!ka'  # ответ на запрос ключа
     ACTIVE_CLIENTS_MSG = '!ac'
-    PORT = 5050
+    PORT = 8080
     BPM = 512  # Bits Per Message (для кодир-я 1 сообщения) (взяли максимальное из-за лени)  # TODO: понизить
     FORMAT = 'utf-8'  # кодировка
 

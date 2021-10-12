@@ -1,2 +1,2 @@
-pyinstaller client.py --onefile -i "C:\Users\mihas\Google Drive\02 Projects\Programming\rsa_encrypted_local_chat\chat\dist\chat.ico"
-pyinstaller server.py --onefile -i "C:\Users\mihas\Google Drive\02 Projects\Programming\rsa_encrypted_local_chat\chat\dist\chat.ico"
+pyinstaller client.py --onefile -i "C:\Users\mihas\Google Drive\02 Projects\Programming\rsa_encrypted_local_chat\chat\chat.ico"
+pyinstaller server.py --onefile -i "C:\Users\mihas\Google Drive\02 Projects\Programming\rsa_encrypted_local_chat\chat\chat.ico"

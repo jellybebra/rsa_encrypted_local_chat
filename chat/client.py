@@ -75,9 +75,6 @@ class Client:
             input_msg: str = input()  # ждём новое сообщение от пользователя
 
             try:
-                # сообщение не должно быть пустым
-                assert len(input_msg.split()) >= 1
-
                 # сообщение не должно содержать тэги
                 assert not any(tag in input_msg for tag in self.__TAGS)
 

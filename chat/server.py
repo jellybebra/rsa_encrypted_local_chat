@@ -12,12 +12,16 @@ else:
 
 class Server:
     def __init__(self):
+        import os
         os.system('cls' if os.name == 'nt' else 'clear')
 
         # создаём полный адрес сервера
         self.__PORT = Messaging.PORT
         self.__SERVER_IP = socket.gethostbyname(socket.gethostname())
-        self.__PUBLIC_SERVER_IP = get('https://api.ipify.org').text
+        try:
+            self.__PUBLIC_SERVER_IP = get('https://api.ipify.org').text
+        except:
+            self.__PUBLIC_SERVER_IP = 'No connection.'
         self.__ADDRESS = (self.__SERVER_IP, self.__PORT)
 
         # создаём сокет на заданном адресе
