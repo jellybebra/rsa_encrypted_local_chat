@@ -21,7 +21,7 @@ https://stuvel.eu/python-rsa-doc/usage.html#generating-keys
 
 https://youtu.be/rrKuqbTDom8
 
-# Благодарности
+# Использованные источники
 
 [Как найти всех хостов в сети?](https://www.tutorialspoint.com/python_penetration_testing/python_penetration_testing_network_scanner.htm)
 
