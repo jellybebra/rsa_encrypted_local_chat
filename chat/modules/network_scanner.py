@@ -1,5 +1,8 @@
 import socket
-from .constants import Style
+if __name__ == '__main__':
+    from constants import Style
+else:
+    from .constants import Style
 
 
 class Network(object):
@@ -50,3 +53,7 @@ class Network(object):
         print(f"[SCANNING] Scanning {Style.GREEN}COMPLETED{Style.WHITE}.")
 
         return hosts
+
+if __name__ == '__main__':
+    n = Network()
+    n.scan()
